@@ -1,0 +1,64 @@
+x-healthcheck: &healthcheck
+  interval: 5s
+  timeout: 3s
+  retries: 10
+
+services:
+  order:
+    build: ./services/order
+    ports: ["3001:3001"]
+    environment:
+      PORT: 3001
+      DB_PATH: /app/data/order.sqlite
+      PAYMENT_URL: http://payment:3002
+      INVENTORY_URL: http://inventory:3003
+      SHIPPING_URL: http://shipping:3004
+    volumes: [order-data:/app/data]
+    depends_on: [payment, inventory, shipping]
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+
+  payment:
+    build: ./services/payment
+    ports: ["3002:3002"]
+    environment:
+      PORT: 3002
+      DB_PATH: /app/data/payment.sqlite
+    volumes: [payment-data:/app/data]
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+
+  inventory:
+    build: ./services/inventory
+    ports: ["3003:3003"]
+    environment:
+      PORT: 3003
+      DB_PATH: /app/data/inventory.sqlite
+    volumes: [inventory-data:/app/data]
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3003/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+
+  shipping:
+    build: ./services/shipping
+    ports: ["3004:3004"]
+    environment:
+      PORT: 3004
+      DB_PATH: /app/data/shipping.sqlite
+    volumes: [shipping-data:/app/data]
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3004/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+
+  frontend:
+    build: ./frontend
+    ports: ["5173:5173"]
+    depends_on: [order]
+
+volumes:
+  order-data:
+  payment-data:
+  inventory-data:
+  shipping-data:
